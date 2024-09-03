@@ -32,24 +32,29 @@ ENTERPRISE_PATH = os.path.join(CUSTOM, 'enterprise') if \
 if os.path.isdir(ENTERPRISE_PATH):
     addons.insert(0, os.path.join(ENTERPRISE_PATH))
 
+# Function to recursively find directories with __manifest__.py and __init__.py
+def find_addon_dirs(base_path):
+    result_dirs = set()  # Using a set to avoid duplicates
+    for root, dirs, files in os.walk(base_path):
+        for dir in dirs:
+            dir_path = os.path.join(root, dir)
+            # Check if the directory contains __manifest__.py and __init__.py
+            if '__manifest__.py' in os.listdir(dir_path) and '__init__.py' in os.listdir(dir_path):
+                parent_dir = os.path.dirname(dir_path)  # Get the parent directory
+                result_dirs.add(parent_dir)
+    return result_dirs
+
 # Project repositories
 repo_addons = []
 
 # Custom repositories, usually mounted for development
 if os.path.isdir(CUSTOM_REPOSITORIES):
-    repo_addons += [
-        os.path.join(CUSTOM_REPOSITORIES, d)
-        for d in sorted(os.listdir(CUSTOM_REPOSITORIES))
-        if os.path.isdir(os.path.join(CUSTOM_REPOSITORIES, d))
-    ]
+    repo_addons += find_addon_dirs(CUSTOM_REPOSITORIES)
 
 # Add src repositories if not available on custom
 if not IGNORE_SRC_REPOSITORIES:
-    repo_addons += [
-        os.path.join(REPOSITORIES, d)
-        for d in sorted(os.listdir(REPOSITORIES))
-        if os.path.isdir(os.path.join(REPOSITORIES, d)) and d not in os.listdir(CUSTOM_REPOSITORIES)
-    ]
+    src_repos = find_addon_dirs(REPOSITORIES)
+    repo_addons += [repo for repo in src_repos if repo not in repo_addons]
 
 # Repo addons are preprended, in case we want to overwrite odoo modules
 addons = repo_addons + addons
