@@ -36,6 +36,8 @@ if os.path.isdir(ENTERPRISE_PATH):
 def find_addon_dirs(base_path):
     result_dirs = set()  # Using a set to avoid duplicates
     for root, dirs, files in os.walk(base_path):
+        # Excluir carpetas llamadas 'setup'
+        dirs[:] = [dir for dir in dirs if dir != 'setup']
         for dir in dirs:
             dir_path = os.path.join(root, dir)
             # Check if the directory contains __manifest__.py and __init__.py
