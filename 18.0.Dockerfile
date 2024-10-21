@@ -1,4 +1,4 @@
-FROM python:3.10-slim-bullseye
+FROM python:3.10-slim-bookworm
 
 EXPOSE 8069 8072
 
@@ -32,14 +32,14 @@ ENV ODOO_SERVER=odoo \
 
 # Other requirements and recommendations to run Odoo
 # See https://github.com/$ODOO_SOURCE/blob/$ODOO_VERSION/debian/control
-ARG WKHTMLTOPDF_VERSION=0.12.5
-ARG WKHTMLTOPDF_CHECKSUM='1140b0ab02aa6e17346af2f14ed0de807376de475ba90e1db3975f112fbd20bb'
 RUN apt-get -qq update \
     && apt-get install -yqq --no-install-recommends \
-        curl \
-    && curl -SLo wkhtmltox.deb https://github.com/wkhtmltopdf/wkhtmltopdf/releases/download/${WKHTMLTOPDF_VERSION}/wkhtmltox_${WKHTMLTOPDF_VERSION}-1.stretch_amd64.deb \
-    && echo "${WKHTMLTOPDF_CHECKSUM}  wkhtmltox.deb" | sha256sum -c - \
+    # Dependencias WKHTMLTOPDF_VERSION
+    curl \
+    && curl -SLo libjpeg-turbo8.deb http://mirrors.kernel.org/ubuntu/pool/main/libj/libjpeg-turbo/libjpeg-turbo8_2.1.2-0ubuntu1_amd64.deb \
+    && curl -SLo wkhtmltox.deb https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-2/wkhtmltox_0.12.6.1-2.jammy_amd64.deb \
     && apt-get install -yqq --no-install-recommends \
+        ./libjpeg-turbo8.deb \
         ./wkhtmltox.deb \
         chromium \
         ffmpeg \
@@ -55,15 +55,15 @@ RUN apt-get -qq update \
         telnet \
         vim \
         sudo \
-    && echo 'deb http://apt.postgresql.org/pub/repos/apt/ bullseye-pgdg main' >> /etc/apt/sources.list.d/postgresql.list \
-    && curl -SL https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
+    && echo 'deb http://apt.postgresql.org/pub/repos/apt/ bookworm-pgdg main' > /etc/apt/sources.list.d/postgresql.list \
+    && wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg \
     && apt-get update \
-    && apt-get install -yqq --no-install-recommends postgresql-client-14 \
+    && apt-get install -yqq --no-install-recommends postgresql-client-16 \
     && apt-get autopurge -yqq \
     && rm -Rf wkhtmltox.deb /var/lib/apt/lists/* /tmp/* \
     && sync
 
-ARG ODOO_VERSION=16.0
+ARG ODOO_VERSION=18.0
 ARG ODOO_SOURCE=odoo/odoo
 ENV ODOO_VERSION="$ODOO_VERSION"
 ENV ODOO_SOURCE="$ODOO_SOURCE"
@@ -97,7 +97,7 @@ RUN build_deps=" \
         pysnooper==1.1.1 \
         ipdb==0.13.9 \
         # Gestión de paquetes pip desde odoo project (#42696)
-        # git+https://github.com/OCA/openupgradelib.git \
+        # git+https://github.com/adhoc-cicd/oca-openupgradelib.git@master \
         click-odoo-contrib==1.16.1 \
         pg-activity==3.0.1 \
         phonenumbers==8.13.1 \
@@ -111,11 +111,11 @@ ARG VCS_REF
 ARG BUILD_DATE
 ARG VERSION
 LABEL org.label-schema.schema-version="$VERSION" \
-      org.label-schema.vendor=Adhoc \
-      org.label-schema.license=Apache-2.0 \
-      org.label-schema.build-date="$BUILD_DATE" \
-      org.label-schema.vcs-ref="$VCS_REF" \
-      org.label-schema.vcs-url="https://github.com/ingadhoc/docker-odoo"
+    org.label-schema.vendor=Adhoc \
+    org.label-schema.license=Apache-2.0 \
+    org.label-schema.build-date="$BUILD_DATE" \
+    org.label-schema.vcs-ref="$VCS_REF" \
+    org.label-schema.vcs-url="https://github.com/ingadhoc/docker-odoo"
 
 # Create directory structure
 ENV SOURCES /home/odoo/src
@@ -180,9 +180,6 @@ RUN apt-get update \
     && pip install --upgrade pip \
     # pip dependencies that require build deps
     && pip install --no-cache-dir \
-        # por problema con cryptography y pyOpenSSL replicamos lo que teniamos
-        pyOpenSSL==19.0.0 \
-        cryptography==35.0.0 \
         ## cloud platform, odoo y odoo saas
         nltk==3.8.1 \
         redis==2.10.5 \
@@ -202,8 +199,6 @@ RUN apt-get update \
         psycopg2-binary \
         ## ingadhoc/website
         html2text==2020.1.16 \
-        ## ingadhoc/odoo-uruguay
-        python-stdnum>=1.16 \
         ## ingadhoc/odoo-argentina
         # forzamos version httplib2==0.20.4 porque con lanzamiento de 0.21 (https://pypi.org/project/httplib2/#history) empezo a dar error de ticket 56946
         httplib2==0.20.4 \
@@ -228,6 +223,7 @@ RUN apt-get update \
         unrar==0.4 \
         mercadopago==2.2.0 \
         # geoip
+        # odoo utiliza geoip2==2.9.0 pero como nosotros ya venimos con la 4.6 preferimos mantener
         geoip2==4.6.0 \
         # l10n_cl_edi y probablemente otros (la version la tomamos de runbot data)
         pdf417gen==0.7.1 \
@@ -237,6 +233,7 @@ RUN apt-get update \
         ShopifyApi==12.3.0 \
         # requirements dashboard_ninja, ver dependencias tzdata, python-dateutil, numpy (#33029)
         pandas==2.1.2 \
+        openpyxl==3.1.2 \
         # requirement para test tours
         websocket-client==1.8.0 \
     # unrar para saas_provider_adhoc y unrar de agip
